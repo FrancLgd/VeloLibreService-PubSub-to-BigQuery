@@ -1,13 +1,22 @@
 
-<h2 align="center">Mise en place d'un pipeline ETL depuis une base MongoDB</h2>
+<h2 align="center">Data Streaming de trajets de vélo en libre service sur GCP</h2>
+
+<div align="center">
+  <img src="./docs/images/logo-velolibreservice.png" width="120" alt="Badge 3" />
+</div>
 
 
-<div align="center"><img src="https://cdn.static-media.blent.ai/images/projects/badge_mongodb.svg" width="120" alt="Badge du projet" /></div>
+<div align="center">
+  <img src="./docs/images/logo-pubsub.png" width="120" alt="Badge 1" />
+  <img src="./docs/images/logo-dataflow.png" width="120" alt="Badge 2" />
+  <img src="./docs/images/logo-bigquery.png" width="120" alt="Badge 3" />
+</div>
 
 <h2 align="center">François Legland</h2>
 
 ## Description
 
+L'objectif de ce mini-projet est le suivant : (i) créer un topic sur Pub/Sub, (ii) simuler un publisher sur ce topic avec un script Python, (iii) récupérer les messages ainsi générés avec Dataflow et (iv) stocker l'informations dans la solution de datawarehousing BigQuery.
 
 ## Étapes de réalisation
 
@@ -17,20 +26,15 @@
 gcloud config set project genial-wonder-440610-d4
 ```
 
-### 1. Créer l'environnement `venv`
+### 1. Créer l'environnement `publisher_env`
 
 ```shell
-conda deactivate
-python -m venv venv
-source ./venv/bin/activate
+python -m venv publisher_env
+source ./publisher_env/bin/activate
+pip install --upgrade pip
+pip install wheel
+pip install 'apache-beam[gcp]'
 ```
-
-Et y installer les dépendances
-
-```shell
-pip install google-cloud-pubsub
-```
-
 ### 2. Créer le topic `bike-sharing-trips` sur PubSub
 
 ```shell
@@ -38,7 +42,7 @@ gcloud pubsub topics create bike-sharing-trips
 gcloud pubsub topics describe bike-sharing-trips
 ```
 
-### 3. Exécuter 
+### 3. Exécuter le publisher en arrière plan
 
 ```shell
 python ./src/pubsub_publisher.py
@@ -50,3 +54,37 @@ python ./src/pubsub_publisher.py
 gcloud pubsub subscriptions create bike-sharing-trips-subs-1 \
     --topic=bike-sharing-trips
 ```
+
+### 5. Créer un dataset BigQuery dédié
+
+```shell
+bq mk --dataset genial-wonder-440610-d4:rw_bikesharing
+```
+
+## 5. Lancer un job Dataflow qui exporte les messages sur BigQuery
+
+```shell
+python ./src/beam_stream_bikesharing.py \
+  --project=genial-wonder-440610-d4 \
+  --region=us-central1 \
+  --temp_location=gs://beam_stream_bikesharing/temp \
+  --runner=DataflowRunner
+```
+
+## 6. Visualiser les données avec une requête dans BigQuery
+
+On exécute une première fois la commande SQL suivante dans BigQuery :
+
+```sql
+SELECT * FROM `rw_bikesharing.bike_trips_streaming` ORDER BY
+start_date DESC;
+```
+
+Sur la capture ci-dessous, on observe alors que les données les plus récentes datent de 18h19 (cf. champ `start_date`). 
+
+<img src="./docs/images/capture_bq_1.png" alt="Exemple d'image" width="1000"/>
+
+En publiant de nouveau des messages sur le topic avec `python ./src/pubsub_publisher.py `, et en regardant immédiament ensuite le contenu de notre table BigQuery, nous observons bien que les messages les plus récents y sont bien présents.
+
+<img src="./docs/images/capture_bq_2.png" alt="Exemple d'image" width="1000"/>
+

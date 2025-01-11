@@ -1,7 +1,8 @@
 airflow/*
 !airflow/dags/daily_update.py
 mongosh/
-venv/
+publisher_env/
+beam_env/
 data/
 mongodb-database-tools/
 config/secrets.ini
