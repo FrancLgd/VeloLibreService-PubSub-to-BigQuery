@@ -42,7 +42,7 @@ gcloud pubsub topics create bike-sharing-trips
 gcloud pubsub topics describe bike-sharing-trips
 ```
 
-### 3. Exécuter le publisher en arrière plan
+### 3. Simuler la publication de messages sur le topic
 
 ```shell
 python ./src/pubsub_publisher.py
@@ -55,7 +55,7 @@ gcloud pubsub subscriptions create bike-sharing-trips-subs-1 \
     --topic=bike-sharing-trips
 ```
 
-### 5. Créer un dataset BigQuery dédié
+### 5. Créer un dataset BigQuery dédié à la réception des messages
 
 ```shell
 bq mk --dataset genial-wonder-440610-d4:rw_bikesharing
@@ -71,20 +71,22 @@ python ./src/beam_stream_bikesharing.py \
   --runner=DataflowRunner
 ```
 
+Pour informations, le script prévoit une création automatique de la table `rw_bikesharing.bike_trips_streaming` si celle-ci n'existe pas (ce qui est le cas à la première exécution).
+
 ## 6. Visualiser les données avec une requête dans BigQuery
 
-On exécute une première fois la commande SQL suivante dans BigQuery :
+Ensuite, afin de vérifier visuellement la bonne insertion des données dans BigQuery, nous exécutons dans sa console la requête SQL suivante :
 
 ```sql
 SELECT * FROM `rw_bikesharing.bike_trips_streaming` ORDER BY
 start_date DESC;
 ```
 
-Sur la capture ci-dessous, on observe alors que les données les plus récentes datent de 18h19 (cf. champ `start_date`). 
+Sur la capture ci-dessous, nous observons alors que les données les plus récentes datent de 18h19 (cf. champ `start_date`), ce qui correpond à l'heure de début des trajets les plus récents publiés sur le topic.
 
 <img src="./docs/images/capture_bq_1.png" alt="Exemple d'image" width="1000"/>
 
-En publiant de nouveau des messages sur le topic avec `python ./src/pubsub_publisher.py `, et en regardant immédiament ensuite le contenu de notre table BigQuery, nous observons bien que les messages les plus récents y sont bien présents.
+En simulant de nouveau de nouveaux trajets avec `python ./src/pubsub_publisher.py `, et en regardant immédiament ensuite le contenu de notre table BigQuery, nous observons bien que les messages les plus récents y sont bien présents.
 
 <img src="./docs/images/capture_bq_2.png" alt="Exemple d'image" width="1000"/>
 
